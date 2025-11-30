@@ -165,6 +165,7 @@ class TSP_GA:
 
         return best_ind, best_length
 
+
 if __name__ == "__main__":
     random.seed(42)
     n_cities = 10
