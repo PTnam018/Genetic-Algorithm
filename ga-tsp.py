@@ -1,5 +1,6 @@
 import random
 import math
+import itertools
 import matplotlib.pyplot as plt
 
 # ============================================
@@ -77,11 +78,9 @@ class TSP_GA:
 
         a, b = sorted(random.sample(range(n), 2))
 
-        # Copy đoạn giữa
         c1[a:b] = p1[a:b]
         c2[a:b] = p2[a:b]
 
-        # Hàm điền phần còn lại
         def fill(child, parent):
             pos = b
             for city in parent:
@@ -106,9 +105,33 @@ class TSP_GA:
         return ind
 
     # ------------------------------------------
-    # CHẠY THUẬT TOÁN GA
+    # TÍNH NGHIỆM ĐÚNG (BRUTE FORCE)
     # ------------------------------------------
-    def run(self, verbose=True):
+    def compute_optimal_solution(self):
+        print("Đang brute-force nghiệm đúng... có thể mất vài giây.")
+        cities = list(range(self.n_cities))
+        best_length = float('inf')
+        best_tour = None
+
+        for perm in itertools.permutations(cities):
+            length = self._tour_length(perm)
+            if length < best_length:
+                best_length = length
+                best_tour = perm
+
+        print(">>> Giá trị đúng (optimal):", best_length)
+        return best_length, best_tour
+
+    # ------------------------------------------
+    # CHẠY THUẬT TOÁN GA + VẼ SO SÁNH OPTIMAL
+    # ------------------------------------------
+    def run(self, verbose=True, compare_optimal=True):
+        # ---- Tính nghiệm đúng ----
+        if compare_optimal:
+            optimal_value, optimal_tour = self.compute_optimal_solution()
+        else:
+            optimal_value = None
+
         population = [self._random_individual() for _ in range(self.pop_size)]
 
         best_ind = None
@@ -118,7 +141,6 @@ class TSP_GA:
         for gen in range(self.generations):
             fitnesses = [self._fitness(ind) for ind in population]
 
-            # Cập nhật best
             for ind in population:
                 length = self._tour_length(ind)
                 if length < best_length:
@@ -135,30 +157,30 @@ class TSP_GA:
                 p1 = self._tournament_selection(population, fitnesses)
                 p2 = self._tournament_selection(population, fitnesses)
 
-                # lai
                 if random.random() < self.pc:
                     c1, c2 = self._crossover_OX(p1, p2)
                 else:
                     c1, c2 = p1[:], p2[:]
 
-                # đột biến
                 new_pop.append(self._mutate_swap(c1))
                 if len(new_pop) < self.pop_size:
                     new_pop.append(self._mutate_swap(c2))
 
             population = new_pop
 
-        # -------- KẾT QUẢ CUỐI CÙNG --------
-        print("===== KẾT QUẢ =====")
-        print("Best tour:", best_ind)
-        print("Best length:", best_length)
+        # -------- KẾT QUẢ --------
+        print("===== KẾT QUẢ GA =====")
+        print("Best GA tour:", best_ind)
+        print("GA Best length:", best_length)
 
-        # Plot hội tụ như RCGA
+        # ---- VẼ SO SÁNH ----
         plt.figure(figsize=(8, 5))
-        plt.plot(convergence, label="Best length")
+        plt.plot(convergence, label="GA best")
+        if compare_optimal:
+            plt.axhline(optimal_value, linestyle='--', label="Optimal", linewidth=2, color='red')
         plt.xlabel("Generation")
         plt.ylabel("Tour length")
-        plt.title("Convergence of TSP GA (Permutation Encoding)")
+        plt.title("Convergence of GA vs Optimal Solution")
         plt.grid(True)
         plt.legend()
         plt.show()
@@ -166,6 +188,9 @@ class TSP_GA:
         return best_ind, best_length
 
 
+# ------------------------------------------
+# MAIN
+# ------------------------------------------
 if __name__ == "__main__":
     random.seed(42)
     n_cities = 10
@@ -178,4 +203,4 @@ if __name__ == "__main__":
                 pm=0.1,
                 tournament_size=3)
 
-    best_tour, best_length = ga.run(verbose=True)
+    best_tour, best_length = ga.run(verbose=True, compare_optimal=True)
