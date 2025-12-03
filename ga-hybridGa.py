@@ -1,6 +1,7 @@
 import random
 import math
 import matplotlib.pyplot as plt
+import itertools
 
 # ===================================================
 #                BASIC FUNCTIONS
@@ -202,28 +203,48 @@ def standard_ga(coords, pop_size=80, generations=300, pc=0.9, pm=0.2,
     return best_tour, best_len, gen_list, convergence
 
 # ===================================================
+#                BRUTE FORCE BEST LENGTH
+# ===================================================
+def brute_force_best_length(coords):
+    n = len(coords)
+    dist = distance_matrix(coords)
+    best_len = float("inf")
+    best_tour = None
+    for perm in itertools.permutations(range(n)):
+        L = tour_length(perm, dist)
+        if L < best_len:
+            best_len = L
+            best_tour = perm
+    return best_tour, best_len
+
+# ===================================================
 #                   RUN BOTH + PLOT
 # ===================================================
 if __name__ == "__main__":
     random.seed(42)
 
-    n_cities = 15
+    n_cities = 10  # giảm xuống để brute force không quá lâu
     coords = [(random.uniform(0,100), random.uniform(0,100)) for _ in range(n_cities)]
 
-    # Run both
+    # Run both GAs
     h_tour, h_len, h_gens, h_conv = hybrid_ga(coords)
     s_tour, s_len, s_gens, s_conv = standard_ga(coords)
 
+    # Compute exact best length
+    bf_tour, bf_len = brute_force_best_length(coords)
+
     print("Hybrid GA best length:  ", h_len)
     print("Standard GA best length:", s_len)
+    print("Exact best length (Brute Force):", bf_len)
 
     # Plot comparison
     plt.figure(figsize=(10,6))
     plt.plot(h_gens, h_conv, label="Hybrid GA (with 2-opt)", linewidth=2)
     plt.plot(s_gens, s_conv, label="Standard GA (no 2-opt)", linewidth=2)
+    plt.axhline(bf_len, color='red', linestyle='--', label="Exact Best (Brute Force)")
     plt.xlabel("Generation")
     plt.ylabel("Best tour length")
-    plt.title("Convergence Comparison")
+    plt.title("Convergence Comparison with Exact Best")
     plt.grid(True)
     plt.legend()
     plt.show()
