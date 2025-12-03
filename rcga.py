@@ -1,5 +1,6 @@
 import random
 import math
+import itertools
 import matplotlib.pyplot as plt
 
 # =========================
@@ -65,7 +66,7 @@ class TSP_RCGA:
         for x1, x2 in zip(p1, p2):
             cmin, cmax = min(x1, x2), max(x1, x2)
             I = cmax - cmin
-            low, high = cmin - self.alpha*I, cmax + self.alpha*I
+            low, high = cmin - self.alpha * I, cmax + self.alpha * I
             v1, v2 = random.uniform(low, high), random.uniform(low, high)
             c1.append(min(1.0, max(0.0, v1)))
             c2.append(min(1.0, max(0.0, v2)))
@@ -78,30 +79,48 @@ class TSP_RCGA:
                 individual[i] = min(1.0, max(0.0, individual[i]))
         return individual
 
-    def run(self, verbose=True):
-        population = [self._random_individual() for _ in range(self.pop_size)]
-
-        best_individual = None
+    # ================================
+    # TÍNH GIÁ TRỊ ĐÚNG (BRUTE FORCE)
+    # ================================
+    def compute_optimal_solution(self):
+        print("Đang brute-force nghiệm đúng... có thể mất vài giây.")
+        cities = list(range(self.n_cities))
         best_length = float('inf')
         best_tour = None
-        convergence = []  # lưu độ dài tốt nhất theo thế hệ
+
+        for perm in itertools.permutations(cities):
+            length = self._tour_length(perm)
+            if length < best_length:
+                best_length = length
+                best_tour = perm
+
+        print(">>> Giá trị đúng (Optimal):", best_length)
+        return best_length, best_tour
+
+    # ================================
+    #          CHẠY GIẢI THUẬT
+    # ================================
+    def run(self, verbose=True):
+
+        # Tính nghiệm đúng trước
+        optimal_value, optimal_tour = self.compute_optimal_solution()
+
+        population = [self._random_individual() for _ in range(self.pop_size)]
+        best_length = float('inf')
+        convergence = []
 
         for gen in range(self.generations):
+
             fitnesses = [self._fitness(ind) for ind in population]
 
-            # Cập nhật best
-            for ind, fit in zip(population, fitnesses):
+            # Lấy best
+            for ind in population:
                 tour = self._decode(ind)
                 length = self._tour_length(tour)
                 if length < best_length:
                     best_length = length
-                    best_individual = ind[:]
-                    best_tour = tour[:]
 
             convergence.append(best_length)
-
-            if verbose and gen % 50 == 0:
-                print(f"Generation {gen}: best length = {best_length:.4f}")
 
             # Tạo quần thể mới
             new_pop = []
@@ -114,49 +133,35 @@ class TSP_RCGA:
                 else:
                     c1, c2 = p1[:], p2[:]
 
-                c1 = self._mutate_gaussian(c1)
-                c2 = self._mutate_gaussian(c2)
-
-                new_pop.append(c1)
+                new_pop.append(self._mutate_gaussian(c1))
                 if len(new_pop) < self.pop_size:
-                    new_pop.append(c2)
+                    new_pop.append(self._mutate_gaussian(c2))
 
             population = new_pop
 
-        # Hiển thị kết quả
-        if verbose:
-            print("===== KẾT QUẢ =====")
-            print("Best tour:", best_tour)
-            print("Best length:", best_length)
+        # =============================
+        # HIỆN SƠ ĐỒ HỘI TỤ
+        # =============================
+        plt.figure(figsize=(9, 5))
+        plt.plot(convergence, label="RCGA Best Length")
+        plt.axhline(optimal_value, color="red", linestyle="--", linewidth=2, label="Optimal Value")
+        plt.xlabel("Generation")
+        plt.ylabel("Tour Length")
+        plt.title("RCGA Convergence vs Optimal")
+        plt.grid(True)
+        plt.legend()
+        plt.show()
 
-            # Vẽ sơ đồ hội tụ
-            plt.figure(figsize=(8,5))
-            plt.plot(convergence, label="Best length")
-            plt.xlabel("Generation")
-            plt.ylabel("Tour length")
-            plt.title("Convergence of TSP RCGA")
-            plt.grid(True)
-            plt.legend()
-            plt.show()
-
-        return best_tour, best_length, best_individual
+        return optimal_value, best_length, convergence
 
 
 # =========================
-#  Ví dụ chạy thử
+#  CHẠY THỬ
 # =========================
 if __name__ == "__main__":
     random.seed(42)
-    n_cities = 10
+    n_cities = 9     # brute-force cần nhỏ (<10)
     coords = [(random.uniform(0, 100), random.uniform(0, 100)) for _ in range(n_cities)]
 
-    ga = TSP_RCGA(coords,
-                  pop_size=60,
-                  generations=500,
-                  pc=0.9,
-                  pm=0.1,
-                  alpha=0.3,
-                  sigma=0.1,
-                  tournament_size=3)
-
-    best_tour, best_length, best_individual = ga.run(verbose=True)
+    ga = TSP_RCGA(coords, pop_size=60, generations=300)
+    optimal, best_ga, conv = ga.run()
